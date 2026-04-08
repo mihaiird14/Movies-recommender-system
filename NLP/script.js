@@ -393,6 +393,8 @@ butonLista.addEventListener('click', () => {
   reimprospataChard(grilaFilme, filmModalCurent);
   reimprospataChard(grilaLista, filmModalCurent);
   reimprospataChard(grilaRec, filmModalCurent);
+  const grilaNLP = document.getElementById('grila-cautare-nlp');
+  if (grilaNLP) reimprospataChard(grilaNLP, filmModalCurent);
 });
 
 function reimprospataChard(grila, filmId) {
@@ -418,3 +420,55 @@ function inchideModal() {
 butonInchide.addEventListener('click', inchideModal);
 modal.addEventListener('click', e => { if (e.target === modal) inchideModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') inchideModal(); });
+
+// ── CAUTARE NLP ──
+const inputNLP       = document.getElementById('input-nlp');
+const butonCautaNLP  = document.getElementById('buton-cauta-nlp');
+const grilaCautareNLP= document.getElementById('grila-cautare-nlp');
+const infoNLP        = document.getElementById('rezultate-nlp-info');
+
+butonCautaNLP.addEventListener('click', cautareNLP);
+inputNLP.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    cautareNLP();
+  }
+});
+
+async function cautareNLP() {
+  const text = inputNLP.value.trim();
+  if (!text) return;
+
+  butonCautaNLP.disabled = true;
+  butonCautaNLP.textContent = 'Se caută...';
+  grilaCautareNLP.innerHTML = `<div class="incarcare"><div id="roata"></div><p>Se analizează descrierea cu TF-IDF...</p></div>`;
+  infoNLP.classList.add('ascuns');
+
+  try {
+    const raspuns = await fetch(`${API}/cauta`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ text })
+    });
+    const date = await raspuns.json();
+
+    grilaCautareNLP.innerHTML = '';
+
+    if (!date.rezultate || date.rezultate.length === 0) {
+      grilaCautareNLP.innerHTML = `<div class="gol"><div class="icon-gol">◎</div><p>Niciun film găsit pentru descrierea ta.<br/>Încearcă o altă formulare.</p></div>`;
+      infoNLP.classList.add('ascuns');
+    } else {
+      infoNLP.classList.remove('ascuns');
+      infoNLP.innerHTML = `
+        <span>🔍 Rezultate pentru: <span class="nlp-query-text">"${text}"</span></span>
+        <span class="nlp-count">${date.rezultate.length} filme găsite</span>`;
+      date.rezultate.forEach(film => grilaCautareNLP.appendChild(creeazaCard(film)));
+    }
+  } catch(e) {
+    grilaCautareNLP.innerHTML = `<div class="gol"><div class="icon-gol">⚠</div><p>Eroare la căutare. Verifică dacă serverul Flask rulează.</p></div>`;
+    infoNLP.classList.add('ascuns');
+  }
+
+  butonCautaNLP.disabled = false;
+  butonCautaNLP.textContent = 'Caută';
+}

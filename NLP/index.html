@@ -54,6 +54,9 @@
         <button class="buton-nav" data-sectiune="recomandari">
           <span>✦</span> Recomandări
         </button>
+        <button class="buton-nav" data-sectiune="cautare-nlp">
+          <span>🔍</span> Căutare NLP
+        </button>
       </nav>
 
       <div id="genuri">
@@ -103,6 +106,21 @@
           <p>Adaugă cel puțin un film în lista ta<br/>pentru a primi recomandări!</p>
         </div>
         <div id="grila-recomandari" class="grila"></div>
+      </div>
+
+      <div id="cautare-nlp" class="sectiune">
+        <div class="antet-sectiune">
+          <h2>Căutare în limbaj natural</h2>
+          <p class="subtitlu-sectiune">Descrie ce fel de film vrei și algoritmul TF-IDF va găsi cele mai potrivite rezultate</p>
+        </div>
+        <div id="zona-cautare-nlp">
+          <div id="input-nlp-container">
+            <textarea id="input-nlp" placeholder="Descrie filmul pe care îl cauți...&#10;&#10;Exemple:&#10;• un film de groază cu criminal în serie&#10;• comedie romantică de Crăciun&#10;• science fiction cu călătorii în timp&#10;• animație pentru copii cu animale care vorbesc" rows="5"></textarea>
+            <button id="buton-cauta-nlp">Caută</button>
+          </div>
+          <div id="rezultate-nlp-info" class="ascuns"></div>
+          <div id="grila-cautare-nlp" class="grila"></div>
+        </div>
       </div>
 
     </main>

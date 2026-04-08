@@ -291,6 +291,13 @@ luaLista() / luaDateUtilizator() / salveazaDateUtilizator()
   Functii helper pentru citirea si scrierea datelor
   utilizatorului in localStorage.
 
+cautareNLP()
+  Citeste textul din textarea-ul de cautare NLP.
+  Face POST la /api/cauta cu textul introdus.
+  Afiseaza rezultatele in grila dedicata, cu un banner
+  informativ care contine query-ul si numarul de filme gasite.
+  Se apeleaza la click pe butonul "Cauta" sau la Enter.
+
 ----------------------------------------------------------------
 7. STRUCTURA localStorage
 ----------------------------------------------------------------
