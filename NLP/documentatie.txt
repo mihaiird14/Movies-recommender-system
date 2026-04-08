@@ -1,0 +1,334 @@
+================================================================
+CINEMATCH — DOCUMENTATIE COMPLETA
+================================================================
+
+----------------------------------------------------------------
+1. DESCRIEREA GENERALA A PROIECTULUI
+----------------------------------------------------------------
+
+CineMatch este o aplicatie web de recomandare de filme formata
+din trei componente principale:
+
+  - app.py      : serverul Python (Flask) care contine toata
+                  logica NLP si comunicarea cu sursele de date
+  - index.html  : interfata utilizatorului (login, grila filme,
+                  modal detalii, liste, recomandari)
+  - stil.css    : stilizarea interfetei (tema dark, cinema)
+  - script.js   : logica frontend (navigare, fetch la API,
+                  randare carduri, localStorage)
+
+Fluxul general al aplicatiei:
+  1. Utilizatorul porneste serverul Flask: python app.py
+  2. Deschide index.html intr-un browser via python -m http.server 8080
+  3. Se logheaza cu un username (salvat in localStorage)
+  4. Frontul cere filmele de la Flask: GET /api/filme
+  5. Flask descarca datele din HuggingFace, calculeaza TF-IDF,
+     imbogateste primele 50 filme cu postere de la TMDB
+  6. Utilizatorul poate naviga, adauga filme in lista,
+     primi recomandari sau cauta in limbaj natural
+
+----------------------------------------------------------------
+2. SURSE DE DATE
+----------------------------------------------------------------
+
+HuggingFace — krishnakamath/movielens-32m-movies-enriched-with-SIDs
+  Contine ~87.000 filme cu: titlu, genuri, rezumat (plot_summary),
+  regizor, actori principali (stars).
+  Folosit pentru: datele textuale ale filmelor si algoritmul NLP.
+
+TMDB API (The Movie Database)
+  API gratuit, accesat cu un API key personal.
+  Folosit exclusiv pentru: poster, backdrop, rating, data lansarii,
+  distributie (cast cu poze).
+  Nu stocheaza filme — doar imbogateste vizual ce vine din HuggingFace.
+
+----------------------------------------------------------------
+3. ALGORITMUL NLP — TF-IDF + COSINE SIMILARITY
+----------------------------------------------------------------
+
+TF-IDF (Term Frequency - Inverse Document Frequency) este un
+algoritm clasic de procesare a limbajului natural care transforma
+textul in vectori numerici, astfel incat filmele similare ca
+subiect sa fie apropiate in spatiul vectorial.
+
+PASUL 1 — Tokenizare
+  Fiecare film are un text compus din: titlu + plot_summary + genuri.
+  Textul este transformat in tokeni: litere mici, se elimina
+  punctuatia, numerele si cuvintele fara sens (stopwords).
+  Exemplu: "A toy cowboy fears being replaced" ->
+           ["toy", "cowboy", "fears", "replaced"]
+
+PASUL 2 — Term Frequency (TF)
+  Masoara cat de des apare un termen intr-un document specific.
+  Formula: TF(termen) = aparitii_termen / total_termeni_document
+  Exemplu: daca "cowboy" apare de 3 ori din 100 tokeni -> TF = 0.03
+
+PASUL 3 — Inverse Document Frequency (IDF)
+  Penalizeaza termenii care apar in multe filme (sunt mai putin
+  relevanti pentru distinctie). Termenii rari primesc scor mai mare.
+  Formula: IDF(termen) = log((N+1) / (df+1)) + 1
+  unde N = numarul total de filme, df = in cate filme apare termenul.
+  Exemplu: "film" apare in toate filmele -> IDF mic
+           "cowboy" apare in putine filme -> IDF mare
+
+PASUL 4 — Scorul TF-IDF
+  Combina TF si IDF: TF-IDF = TF * IDF
+  Un termen primeste scor mare daca apare des intr-un film specific
+  dar rar in restul filmelor.
+
+PASUL 5 — Normalizare L2
+  Fiecare vector este impartit la lungimea sa (norma L2).
+  Scop: face ca toate vectorii sa aiba aceeasi "marime",
+  astfel incat filmele lungi si scurte sa fie comparabile corect.
+
+PASUL 6 — Cosine Similarity
+  Masoara similitudinea dintre doi vectori prin unghiul dintre ei.
+  Deoarece vectorii sunt normalizati L2, cosine similarity =
+  produsul scalar simplu (dot product).
+  Valoare 0 = complet diferite, valoare 1 = identice.
+
+----------------------------------------------------------------
+4. DOCUMENTATIA FUNCTIILOR DIN app.py
+----------------------------------------------------------------
+
+tokenizeaza(text)
+  Primeste un string de text.
+  Il transforma in litere mici, elimina tot ce nu e litera,
+  imparte in cuvinte si filtreaza stopwords si cuvintele scurte.
+  Returneaza o lista de tokeni curati.
+
+calculeazaTF(tokeni)
+  Primeste o lista de tokeni.
+  Numara aparitiile fiecarui termen si le imparte la numarul
+  total de tokeni din document.
+  Returneaza un dictionar { termen: frecventa_relativa }.
+
+calculeazaIDF(corpus)
+  Primeste o lista de liste de tokeni (toate filmele).
+  Calculeaza in cate documente apare fiecare termen (document
+  frequency) si aplica formula IDF smoothed.
+  Returneaza un dictionar { termen: scor_idf }.
+  Salveaza rezultatul si in idf_global pentru reutilizare.
+
+normalizeazaL2(vector)
+  Primeste un dictionar { termen: scor }.
+  Calculeaza norma L2 (radacina din suma patratelor valorilor)
+  si imparte fiecare valoare la ea.
+  Returneaza vectorul normalizat.
+
+construiesteMatriceTFIDF(filme)
+  Primeste lista de filme.
+  Pentru fiecare film construieste textul compus, il tokenizeaza,
+  calculeaza TF, inmulteste cu IDF-ul global si normalizeaza L2.
+  Salveaza idf_global pentru a fi reutilizat la cautarea naturala.
+  Returneaza un dictionar { film_id: vector_tfidf }.
+
+similaritateeCosinus(vec_a, vec_b)
+  Primeste doi vectori TF-IDF normalizati.
+  Calculeaza produsul scalar (dot product) care, datorita
+  normalizarii L2, este egal cu cosine similarity.
+  Returneaza un float intre 0 si 1.
+
+genereazaRecomandari(ids_lista, top_n)
+  Primeste lista de id-uri ale filmelor din lista utilizatorului.
+  Pasul 1: calculeaza profilul utilizatorului = media vectorilor
+           TF-IDF ai filmelor din lista sa.
+  Pasul 2: calculeaza cosine similarity intre profil si fiecare
+           film care nu e deja in lista.
+  Pasul 3: sorteaza descrescator si returneaza top N filme.
+
+cautaDupaText(text, top_n)
+  Primeste un text liber in limbaj natural (ex: "film de groaza
+  cu criminal in serie").
+  Tokenizeaza textul, calculeaza TF, aplica IDF-ul global deja
+  construit, normalizeaza L2.
+  Calculeaza cosine similarity fata de toate filmele din corpus.
+  Returneaza top N filme cele mai similare cu descrierea data.
+  Aceasta functie permite cautarea semantica in limbaj natural.
+
+incarcaFilmeHuggingFace(limita)
+  Descarca dataset-ul de pe HuggingFace folosind biblioteca datasets.
+  Itereaza prin primele `limita` inregistrari.
+  Mapeaza coloanele HuggingFace (movie_id, title, plot_summary,
+  genres, director, stars) la structura interna a aplicatiei.
+  Returneaza o lista de dictionare reprezentand filmele.
+
+curataTitlu(titlu)
+  Primeste un titlu de forma "Toy Story (1995)".
+  Foloseste regex pentru a extrage titlul curat si anul separat.
+  Returneaza un tuplu (titlu_curat, an) sau (titlu_original, None).
+
+cautaTMDB(titlu)
+  Primeste un titlu de film (poate contine anul).
+  Curata titlul cu curataTitlu, apoi cauta pe TMDB cu titlul curat.
+  Daca are an, il trimite ca filtru optional pentru precizie.
+  Daca nu gaseste rezultate cu an, incearca din nou fara an.
+  Returneaza poster_path, backdrop_path, vote_average,
+  release_date, tmdb_id sau {} daca nu gaseste nimic.
+
+luaDistributie(tmdb_id)
+  Primeste un ID TMDB numeric.
+  Face un request la /movie/{id}/credits pe TMDB.
+  Returneaza primii 6 actori din cast (cu poza si nume).
+
+imbogatesteUnFilm(film)
+  Primeste un dictionar reprezentand un film.
+  Apeleaza cautaTMDB cu titlul filmului.
+  Salveaza rezultatele (poster, backdrop, rating, data, tmdb_id)
+  direct in obiectul film din cache si in tmdb_cache.
+
+imbogatesteRestulInFundal(filme, start)
+  Rulata intr-un thread separat (daemon).
+  Itereaza filmele de la indexul `start` pana la sfarsit.
+  Apeleaza imbogatesteUnFilm pentru fiecare.
+  Permite ca interfata sa fie disponibila rapid fara a astepta
+  toate cererile TMDB sa se termine.
+
+----------------------------------------------------------------
+5. DOCUMENTATIA ENDPOINT-URILOR FLASK (API REST)
+----------------------------------------------------------------
+
+GET /api/filme
+  La primul apel:
+    - descarca filmele din HuggingFace (limita configurabila)
+    - construieste matricea TF-IDF pentru toate filmele
+    - imbogateste primele 50 cu postere TMDB sincron
+    - porneste un thread care imbogateste restul asincron
+  La apelurile ulterioare:
+    - returneaza direct cache-ul actualizat
+  Raspuns: { filme: [...], total: N }
+
+POST /api/recomandari
+  Primeste: { "lista": [id1, id2, id3] }
+  Construieste profilul utilizatorului din vectorii TF-IDF
+  ai filmelor din lista si returneaza top 20 recomandari.
+  Raspuns: { recomandari: [...], total: N }
+
+POST /api/cauta
+  Primeste: { "text": "vreau un film de actiune cu roboti" }
+  Transforma textul in vector TF-IDF folosind idf_global,
+  calculeaza similaritatea cu toate filmele si returneaza
+  top 20 rezultate cele mai relevante.
+  Raspuns: { rezultate: [...], total: N }
+
+GET /api/film/<id>
+  Returneaza detaliile complete ale unui film.
+  Datele de baza (titlu, plot, genuri, director, actori) vin
+  din cache-ul HuggingFace.
+  Posterul, backdropul si castul cu poze vin de la TMDB,
+  cautate dupa titlu si salvate in tmdb_cache.
+  Raspuns: { detalii: {...}, distributie: { cast: [...] } }
+
+GET /api/genuri
+  Returneaza lista sortata a tuturor genurilor unice din cache.
+  Raspuns: { genuri: ["Action", "Comedy", ...] }
+
+----------------------------------------------------------------
+6. DOCUMENTATIA FRONTEND (script.js)
+----------------------------------------------------------------
+
+faceLogin()
+  Citeste username-ul din input, valideaza lungimea minima (3),
+  creeaza sau incarca datele utilizatorului din localStorage
+  si apeleaza intraInApp().
+
+faceLogout()
+  Reseteaza starea globala, ascunde ecranul aplicatiei si
+  arata ecranul de autentificare.
+
+intraInApp()
+  Afiseaza ecranul principal, seteaza avatarul si numele,
+  actualizeaza contorul si porneste incarcaFilme().
+
+incarcaFilme()
+  Face GET la /api/filme, salveaza filmele in starea globala,
+  apeleaza construiesteGenuri() si afiseazaGrilaFilme().
+
+construiesteGenuri()
+  Face GET la /api/genuri si populeaza sidebar-ul cu butoane
+  de filtrare pe gen.
+
+aplicaFiltre()
+  Filtreaza toateFilmele dupa textul din campul de cautare
+  si dupa genul activ din sidebar. Reseteaza grila.
+
+afiseazaGrilaFilme()
+  Randeaza primele MARIME_PAGINA filme filtrate in grila.
+  Gestioneaza butonul "Incarca mai multe".
+
+creeazaCard(film)
+  Primeste un obiect film si returneaza un element HTML card
+  cu poster, titlu, an, gen, rating si insigna daca e in lista.
+
+afiseazaLista()
+  Filtreaza toateFilmele dupa id-urile din localStorage
+  si le randeaza in grila listei utilizatorului.
+
+incarcaRecomandari()
+  Face POST la /api/recomandari cu lista utilizatorului.
+  Afiseaza filmele returnate de Flask (calculate cu TF-IDF Python).
+
+deschideModal(filmId)
+  Face GET la /api/film/{id} si apeleaza umpleModal() cu rezultatele.
+
+umpleModal(detalii, distributie)
+  Populeaza toate elementele din modal: backdrop, poster, titlu,
+  taguri gen, meta (an, durata, rating), descriere, cast cu poze.
+
+actualizeazaButonLista()
+  Verifica daca filmul din modal e in lista si schimba textul
+  si stilul butonului corespunzator.
+
+toggleLista(filmId)
+  Adauga sau elimina un film din lista utilizatorului in localStorage.
+  Actualizeaza contorul din sidebar.
+
+reimprospataChard(grila, filmId)
+  Gaseste cardul unui film intr-o grila si il inlocuieste cu
+  o versiune noua (pentru a reflecta schimbarile din lista).
+
+luaLista() / luaDateUtilizator() / salveazaDateUtilizator()
+  Functii helper pentru citirea si scrierea datelor
+  utilizatorului in localStorage.
+
+----------------------------------------------------------------
+7. STRUCTURA localStorage
+----------------------------------------------------------------
+
+Cheia: "cm_utilizatori"
+Valoare: JSON de forma:
+{
+  "ion": {
+    "lista": [1, 45, 203]
+  },
+  "maria": {
+    "lista": [7, 89]
+  }
+}
+
+Datele sunt salvate per browser, per calculator.
+Nu se sincronizeaza intre dispozitive.
+Se sterg daca utilizatorul curata cache-ul browserului.
+
+----------------------------------------------------------------
+8. CUM SE PORNESTE APLICATIA
+----------------------------------------------------------------
+
+Terminal 1 — serverul Flask (NLP + API):
+  pip install -r requirements.txt
+  python app.py
+
+Terminal 2 — serverul HTTP pentru frontend:
+  cd calea/catre/cinematch
+  python -m http.server 8080
+
+Browser:
+  http://localhost:8080
+
+Flask ruleaza pe portul 5000.
+Frontend-ul pe portul 8080.
+CORS este activat in Flask pentru a permite comunicarea intre ele.
+
+Prima pornire dureaza 1-3 minute pentru descarcarea dataset-ului
+HuggingFace si calculul TF-IDF. La pornirile urmatoare,
+HuggingFace foloseste cache-ul local si e mult mai rapid.
