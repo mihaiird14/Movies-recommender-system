@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CineMatch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="stil.css"/>
+</head>
+<body>
+
+  <div id="autentificare" class="ecran activ">
+    <div id="fundal"></div>
+    <div id="cutie">
+      <div id="logo">
+        <span id="simbol">◈</span>
+        <h1>CineMatch</h1>
+      </div>
+      <p id="subtitlu">Enter your username to continue</p>
+      <div id="grup">
+        <input type="text" id="utilizator" placeholder="username..." autocomplete="off"/>
+        <button id="butonIntra">Enter</button>
+      </div>
+      <p id="mesaj"></p>
+    </div>
+  </div>
+
+  <div id="aplicatie" class="ecran">
+
+    <aside id="bara">
+      <div id="antet">
+        <span class="simbol-mic">◈</span>
+        <span id="marca">CineMatch</span>
+      </div>
+
+      <div id="profil">
+        <div id="avatar"></div>
+        <div id="info">
+          <div id="nume"></div>
+          <div id="contor">0 movies saved</div>
+        </div>
+        <button id="butonIesire" title="Logout">⏻</button>
+      </div>
+
+      <nav id="navigare">
+        <button class="buton-nav activ" data-sectiune="descoperire">
+          <span>⬡</span> Discover
+        </button>
+        <button class="buton-nav" data-sectiune="lista">
+          <span>◎</span> My List
+        </button>
+        <button class="buton-nav" data-sectiune="recomandari">
+          <span>✦</span> Recommendations
+        </button>
+        <button class="buton-nav" data-sectiune="cautare-nlp">
+          <span></span>Search
+        </button>
+      </nav>
+
+      <div id="genuri">
+        <div id="eticheta-genuri">Genres</div>
+      </div>
+    </aside>
+
+    <main id="continut">
+
+      <div id="descoperire" class="sectiune activa">
+        <div id="antet-descoperire" class="antet-sectiune">
+          <h2>Discover Movies</h2>
+          <div id="cautare">
+            <input type="text" id="camp-cautare" placeholder="Search for a movie..."/>
+            <span id="icon-cautare">⌕</span>
+          </div>
+        </div>
+        <div id="grila-filme" class="grila">
+          <div id="incarcare" class="incarcare">
+            <div id="roata"></div>
+            <p>Loading movies...</p>
+          </div>
+        </div>
+        <button id="butonMaiMulte">Load more</button>
+      </div>
+
+      <div id="lista" class="sectiune">
+        <div class="antet-sectiune">
+          <h2>My List</h2>
+          <p class="subtitlu-sectiune">Movies you want to watch</p>
+        </div>
+        <div id="grila-lista" class="grila">
+          <div class="gol">
+            <div class="icon-gol">◎</div>
+            <p>Your list is empty.<br/>Add movies from the Discover section!</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="recomandari" class="sectiune">
+        <div class="antet-sectiune">
+          <h2>Recommendations for you</h2>
+          <p class="subtitlu-sectiune">Based on your list — Word2Vec algorithm</p>
+        </div>
+        <div id="gol-recomandari" class="gol">
+          <div class="icon-gol">✦</div>
+          <p>Add at least one movie to your list<br/>to receive recommendations!</p>
+        </div>
+        <div id="grila-recomandari" class="grila"></div>
+      </div>
+
+      <div id="cautare-nlp" class="sectiune">
+        <div class="antet-sectiune">
+          <h2>Natural Language Search</h2>
+          <p class="subtitlu-sectiune">Describe what kind of movie you want and the Word2Vec algorithm will find the best matches</p>
+        </div>
+        <div id="zona-cautare-nlp">
+          <div id="input-nlp-container">
+            <textarea id="input-nlp" placeholder="Describe the movie you are looking for...&#10;&#10;Examples:&#10;• a horror movie with a serial killer&#10;• romantic comedy set at Christmas&#10;• science fiction with time travel&#10;• movies with Tom Hanks&#10;• action movies directed by Spielberg&#10;• animation for kids with talking animals" rows="6"></textarea>
+            <button id="buton-cauta-nlp">Search</button>
+          </div>
+          <div id="rezultate-nlp-info" class="ascuns"></div>
+          <div id="grila-cautare-nlp" class="grila"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <div id="modal" class="ascuns">
+    <div id="card-modal">
+      <button id="butonInchide">✕</button>
+      <div id="backdrop"></div>
+      <div id="corp-modal">
+        <img id="poster" src="" alt=""/>
+        <div id="detalii">
+          <div id="taguri"></div>
+          <h2 id="titlu-modal"></h2>
+          <div id="meta"></div>
+          <p id="descriere"></p>
+          <div id="distributie"></div>
+          <button id="butonLista">+ Add to my list</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
