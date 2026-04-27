@@ -98,7 +98,7 @@
       <div id="recomandari" class="sectiune">
         <div class="antet-sectiune">
           <h2>Recommendations for you</h2>
-          <p class="subtitlu-sectiune">Based on your list — Word2Vec algorithm</p>
+          
         </div>
         <div id="gol-recomandari" class="gol">
           <div class="icon-gol">✦</div>
@@ -110,11 +110,17 @@
       <div id="cautare-nlp" class="sectiune">
         <div class="antet-sectiune">
           <h2>Natural Language Search</h2>
-          <p class="subtitlu-sectiune">Describe what kind of movie you want and the Word2Vec algorithm will find the best matches</p>
+          
         </div>
         <div id="zona-cautare-nlp">
+          <div id="selector-algoritm">
+            <button class="buton-algoritm activ" data-algoritm="word2vec">Word2Vec</button>
+            <button class="buton-algoritm" data-algoritm="sbert">
+              SBERT <span id="badge-sbert">loading...</span>
+            </button>
+          </div>
           <div id="input-nlp-container">
-            <textarea id="input-nlp" placeholder="Describe the movie you are looking for...&#10;&#10;Examples:&#10;• a horror movie with a serial killer&#10;• romantic comedy set at Christmas&#10;• science fiction with time travel&#10;• movies with Tom Hanks&#10;• action movies directed by Spielberg&#10;• animation for kids with talking animals" rows="6"></textarea>
+            <textarea id="input-nlp" placeholder="Describe the movie you are looking for..."></textarea>
             <button id="buton-cauta-nlp">Search</button>
           </div>
           <div id="rezultate-nlp-info" class="ascuns"></div>

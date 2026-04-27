@@ -740,3 +740,48 @@ html, body {
   color: var(--text3);
   white-space: nowrap;
 }
+
+#selector-algoritm {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.buton-algoritm {
+  padding: 8px 20px;
+  border: 1px solid var(--bordura);
+  border-radius: var(--raza);
+  background: none;
+  color: var(--text2);
+  font-family: var(--font-text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.buton-algoritm:hover { border-color: var(--accent); color: var(--accent); }
+.buton-algoritm.activ { background: rgba(232,197,90,0.12); border-color: var(--accent); color: var(--accent); font-weight: 500; }
+.buton-algoritm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#badge-sbert {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text3);
+}
+#badge-sbert.gata {
+  background: rgba(100,200,120,0.15);
+  color: #6dc87a;
+}
+
+.nlp-algoritm {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: rgba(232,197,90,0.12);
+  color: var(--accent);
+  margin-left: 6px;
+}

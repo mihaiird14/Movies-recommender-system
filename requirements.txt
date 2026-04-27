@@ -4,3 +4,4 @@ requests
 datasets
 gensim
 numpy
+sentence-transformers

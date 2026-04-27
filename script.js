@@ -141,6 +141,7 @@ async function incarcaFilme() {
     construiesteGenuri();
     afiseazaGrilaFilme();
     pornestePollling();
+    pornestePollingSbert();
   } catch(e) {
     grilaFilme.innerHTML = `
       <div class="gol">
@@ -422,37 +423,77 @@ butonInchide.addEventListener('click', inchideModal);
 modal.addEventListener('click', e => { if (e.target === modal) inchideModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') inchideModal(); });
 
-// ── CAUTARE NLP ──
-const inputNLP       = document.getElementById('input-nlp');
-const butonCautaNLP  = document.getElementById('buton-cauta-nlp');
-const grilaCautareNLP= document.getElementById('grila-cautare-nlp');
-const infoNLP        = document.getElementById('rezultate-nlp-info');
+const inputNLP        = document.getElementById('input-nlp');
+const butonCautaNLP   = document.getElementById('buton-cauta-nlp');
+const grilaCautareNLP = document.getElementById('grila-cautare-nlp');
+const infoNLP         = document.getElementById('rezultate-nlp-info');
+const badgeSbert      = document.getElementById('badge-sbert');
+
+let algoritmActiv = 'word2vec';
+let sbertGata     = false;
+
+document.querySelectorAll('.buton-algoritm').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.algoritm === 'sbert' && !sbertGata) return;
+    algoritmActiv = btn.dataset.algoritm;
+    document.querySelectorAll('.buton-algoritm').forEach(b => b.classList.remove('activ'));
+    btn.classList.add('activ');
+  });
+});
+
+async function verificaStatusSbert() {
+  try {
+    const raspuns = await fetch(`${API}/status`);
+    const date    = await raspuns.json();
+    if (date.sbert) {
+      sbertGata = true;
+      if (badgeSbert) {
+        badgeSbert.textContent = 'ready';
+        badgeSbert.classList.add('gata');
+      }
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+async function pornestePollingSbert() {
+  const interval = setInterval(async () => {
+    const gata = await verificaStatusSbert();
+    if (gata) clearInterval(interval);
+  }, 5000);
+  verificaStatusSbert();
+}
 
 butonCautaNLP.addEventListener('click', cautareNLP);
 inputNLP.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    cautareNLP();
-  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); cautareNLP(); }
 });
 
 async function cautareNLP() {
   const text = inputNLP.value.trim();
   if (!text) return;
 
-  butonCautaNLP.disabled = true;
+  butonCautaNLP.disabled    = true;
   butonCautaNLP.textContent = 'Searching...';
-  grilaCautareNLP.innerHTML = `<div class="incarcare"><div id="roata"></div><p>Analysing your description with Word2Vec...</p></div>`;
+  grilaCautareNLP.innerHTML = `<div class="incarcare"><div id="roata"></div><p>Analysing with ${algoritmActiv === 'sbert' ? 'SBERT' : 'Word2Vec'}...</p></div>`;
   infoNLP.classList.add('ascuns');
 
   try {
     const raspuns = await fetch(`${API}/cauta`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ text })
+      body:    JSON.stringify({ text, algoritm: algoritmActiv })
     });
-    const date = await raspuns.json();
 
+    if (raspuns.status === 503) {
+      grilaCautareNLP.innerHTML = `<div class="gol"><div class="icon-gol">⏳</div><p>SBERT is still loading.<br/>Please wait a moment and try again.</p></div>`;
+      butonCautaNLP.disabled    = false;
+      butonCautaNLP.textContent = 'Search';
+      return;
+    }
+
+    const date = await raspuns.json();
     grilaCautareNLP.innerHTML = '';
 
     if (!date.rezultate || date.rezultate.length === 0) {
@@ -461,7 +502,7 @@ async function cautareNLP() {
     } else {
       infoNLP.classList.remove('ascuns');
       infoNLP.innerHTML = `
-        <span>Results for: <span class="nlp-query-text">"${text}"</span></span>
+        <span>Results for: <span class="nlp-query-text">"${text}"</span> <span class="nlp-algoritm">${date.algoritm === 'sbert' ? 'SBERT' : 'Word2Vec'}</span></span>
         <span class="nlp-count">${date.rezultate.length} movies found</span>`;
       date.rezultate.forEach(film => grilaCautareNLP.appendChild(creeazaCard(film)));
     }
@@ -470,7 +511,7 @@ async function cautareNLP() {
     infoNLP.classList.add('ascuns');
   }
 
-  butonCautaNLP.disabled = false;
+  butonCautaNLP.disabled    = false;
   butonCautaNLP.textContent = 'Search';
 }
 

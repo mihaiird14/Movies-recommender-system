@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from datasets import load_dataset
 from gensim.models import Word2Vec as W2V
+from sentence_transformers import SentenceTransformer
 import numpy as np
 import requests
 import re
@@ -13,10 +14,12 @@ CORS(app)
 TMDB_API_KEY = 'a92262bee0938735682d46b631a3b5b6'
 TMDB_BASE    = 'https://api.themoviedb.org/3'
 
-filme_cache    = []
-model_w2v      = None
-vectori_filme  = {}
-tmdb_cache     = {}
+filme_cache      = []
+model_w2v        = None
+model_sbert      = None
+vectori_filme    = {}
+vectori_sbert    = {}
+tmdb_cache       = {}
 
 CUVINTE_STOP = {
     'the','a','an','and','or','but','in','on','at','to','for','of',
@@ -308,6 +311,50 @@ def cautaDupaText(text: str, top_n: int = 20) -> list:
     return [film for _, film in scoruri[:top_n]]
 
 
+def construiesteVectoriSbert(filme: list) -> dict:
+    texte = [
+        f"{f.get('title', '')} {f.get('plot_summary', '')} {' '.join(f.get('genre_names', []))}"
+        for f in filme
+    ]
+    vectori_raw = model_sbert.encode(texte, batch_size=64, show_progress_bar=True)
+    return {
+        filme[i]['id']: normalizeazaL2(vectori_raw[i])
+        for i in range(len(filme))
+    }
+
+
+def cautaDupaTextSbert(text: str, top_n: int = 20) -> list:
+    if model_sbert is None or not vectori_sbert:
+        return []
+
+    cerere    = parseazaCerere(text)
+    candidati = filtreazaDupaMetadate(filme_cache, cerere)
+    if not candidati:
+        candidati = filme_cache
+
+    vec = normalizeazaL2(model_sbert.encode(text))
+
+    scoruri = []
+    for film in candidati:
+        vec_film = vectori_sbert.get(film['id'])
+        if vec_film is None:
+            continue
+        scor = similaritateeCosinus(vec, vec_film)
+
+        bonus = 0.0
+        if cerere['genuri']:
+            genuri_film = [g.lower() for g in film.get('genre_names', [])]
+            bonus += sum(1 for g in cerere['genuri'] if g.lower() in genuri_film) * 0.15
+        if cerere['actori']:
+            text_persoane = ' '.join(film.get('stars', [])).lower() + ' ' + (film.get('director') or '').lower()
+            bonus += sum(1 for a in cerere['actori'] if a.lower() in text_persoane) * 0.2
+
+        scoruri.append((scor + bonus, film))
+
+    scoruri.sort(key=lambda x: x[0], reverse=True)
+    return [film for _, film in scoruri[:top_n]]
+
+
 def incarcaFilmeHuggingFace(limita: int = 500) -> list:
     print("Se descarca dataset-ul de pe HuggingFace...")
     dataset = load_dataset(
@@ -404,6 +451,15 @@ def imbogatesteRestulInFundal(filme: list, start: int):
     print("Thread fundal: gata cu toate posterele!")
 
 
+def incarcaSbertInFundal():
+    global model_sbert, vectori_sbert
+    print("Thread fundal: se incarca SBERT (paraphrase-multilingual-MiniLM-L12-v2)...")
+    model_sbert   = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+    print("SBERT incarcat. Se calculeaza vectorii...")
+    vectori_sbert = construiesteVectoriSbert(filme_cache)
+    print("SBERT gata!")
+
+
 @app.route('/api/filme', methods=['GET'])
 def getFilme():
     global filme_cache, model_w2v, vectori_filme
@@ -422,6 +478,8 @@ def getFilme():
         vectori_filme = construiesteVectoriFilme(filme_cache, corpus, model_w2v)
         print("Word2Vec gata!")
 
+        threading.Thread(target=incarcaSbertInFundal, daemon=True).start()
+
         print("Se imbogatesc primele 50 filme cu postere TMDB...")
         for film in filme_cache[:50]:
             try:
@@ -429,13 +487,12 @@ def getFilme():
             except Exception:
                 pass
 
-        thread = threading.Thread(
+        threading.Thread(
             target=imbogatesteRestulInFundal,
             args=(filme_cache, 50),
             daemon=True
-        )
-        thread.start()
-        print("Gata! Restul posterelor se incarca in fundal.")
+        ).start()
+        print("Gata! Restul posterelor si SBERT se incarca in fundal.")
 
     return jsonify({'filme': filme_cache, 'total': len(filme_cache)})
 
@@ -454,8 +511,22 @@ def getCautareNaturala():
     date = request.get_json()
     if not date or 'text' not in date:
         return jsonify({'eroare': 'Lipseste campul text'}), 400
-    rezultate = cautaDupaText(date['text'], top_n=20)
-    return jsonify({'rezultate': rezultate, 'total': len(rezultate)})
+    algoritm  = date.get('algoritm', 'word2vec')
+    if algoritm == 'sbert':
+        if model_sbert is None:
+            return jsonify({'eroare': 'SBERT is still loading, please wait...'}), 503
+        rezultate = cautaDupaTextSbert(date['text'], top_n=20)
+    else:
+        rezultate = cautaDupaText(date['text'], top_n=20)
+    return jsonify({'rezultate': rezultate, 'total': len(rezultate), 'algoritm': algoritm})
+
+
+@app.route('/api/status', methods=['GET'])
+def getStatus():
+    return jsonify({
+        'word2vec': model_w2v is not None,
+        'sbert':    model_sbert is not None,
+    })
 
 
 @app.route('/api/film/<int:film_id>', methods=['GET'])
